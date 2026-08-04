@@ -2,13 +2,11 @@
 
 Every formula below is copied verbatim out of
 [`workbook/Sales_Analytics_Excel.xlsx`](../workbook/Sales_Analytics_Excel.xlsx).
-They are not illustrations — they are what the file actually contains, and they
-all evaluate without error.
+They are not illustrations — they are what the file actually contains.
 
-The workbook is built for **Excel 2016**, so it uses no dynamic arrays, no
-`XLOOKUP`, no `LET`. See [modern_excel_equivalents.md](modern_excel_equivalents.md)
-for how each pattern shortens in Microsoft 365, and why the classic form is still
-the safer thing to hand a stranger.
+The workbook targets **Excel 2016**: no dynamic arrays, no `XLOOKUP`, no `LET`.
+A file that opens with `#NAME?` errors on someone else's machine has failed
+before anyone reads a formula, and the classic forms below run everywhere.
 
 ---
 
@@ -41,8 +39,7 @@ against the row above is enough:
 =IF($A2<>$A1,1,0)
 ```
 
-Summing that column gives 39,743 — which matches
-`COUNT(DISTINCT order_id)` in BigQuery exactly. It is O(n), and it survives
+Summing that column gives 39,743 distinct orders. It is O(n), and it survives
 filtering because it lives in the table.
 
 The trick has one precondition — **the data must stay sorted by `order_id`** —
@@ -50,10 +47,8 @@ and that precondition is enforced upstream in the SQL, not assumed.
 
 ### Why nested IF instead of IFS
 
-`IFS` does not exist in Excel 2016, and functions added after 2007 have to be
-written as `_xlfn.IFS(...)` when a file is generated programmatically. Get that
-wrong and the cell shows `#NAME?`. Nested `IF` has none of those problems and
-runs everywhere.
+`IFS` does not exist in Excel 2016. Nested `IF` is longer to read but runs on
+any version, which matters more for a file that gets shared.
 
 ---
 
@@ -197,10 +192,9 @@ Banded histogram with `COUNTIFS` — first band, then the repeating band:
 The bounds live in cells and are concatenated into the criteria with `&`, so the
 bands are editable without touching a formula. The counts sum to exactly 57,542.
 
-`FREQUENCY` as a multi-cell array formula would be the textbook approach; it is
-not used here because it cannot be written through Excel's automation interface
-in this build, and a formula that has to be re-entered by hand with
-Ctrl+Shift+Enter is a formula that will eventually be broken by the next person.
+`FREQUENCY` as a multi-cell array formula would be the textbook approach. It is
+not used here because a formula that has to be re-entered with Ctrl+Shift+Enter
+is one the next person will eventually break — `COUNTIFS` survives editing.
 
 ---
 
@@ -239,13 +233,3 @@ bug in hand-built moving averages.
 
 The month spine is a real 24-row date dimension on `Lookups`, so a month with no
 sales shows as a zero instead of vanishing from the chart.
-
-### One bug worth recording
-
-The month spine was first generated with the current time attached, so
-`2024-01-01` was stored as `45292.6259` rather than `45292`. Every `SUMIFS`
-against it returned zero — no error, no warning, just twenty-four zeros.
-
-Dates in Excel are numbers, and a date carrying a time component will never
-equal a clean date. This is the failure mode behind most "my SUMIFS returns 0 and
-I can't see why" problems, and it is silent, which is what makes it dangerous.
